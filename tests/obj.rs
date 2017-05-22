@@ -25,6 +25,7 @@ fn normal_cone() {
             Vertex {
                 position: [$(stringify!($p).parse::<f32>().unwrap()),*],
                 normal: [$(stringify!($n).parse::<f32>().unwrap()),*],
+                uv: [0.0; 3],
             }
         })
     }

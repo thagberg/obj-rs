@@ -77,9 +77,9 @@ impl<V: FromRawVertex> Obj<V> {
 /// Conversion from `RawObj`'s raw data.
 pub trait FromRawVertex : Sized {
     /// Build vertex and index buffer from raw object data.
-    fn process(vertices: Vec<(f32, f32, f32, f32)>, 
-        normals: Vec<(f32, f32, f32)>, 
-        uvs: Vec<(f32, f32, f32, f32)>, 
+    fn process(vertices: Vec<(f32, f32, f32, f32)>,
+        normals: Vec<(f32, f32, f32)>,
+        uvs: Vec<(f32, f32, f32)>,
         polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)>;
 }
 
@@ -90,7 +90,7 @@ pub struct Vertex {
     pub position: [f32; 3],
     /// Normal vertor of a vertex.
     pub normal: [f32; 3],
-
+    /// Texture coordinates of a vertex.
     pub uv: [f32; 3],
 }
 
@@ -98,22 +98,36 @@ pub struct Vertex {
 implement_vertex!(Vertex, position, normal);
 
 impl FromRawVertex for Vertex {
-    fn process(positions: Vec<(f32, f32, f32, f32)>, 
-        normals: Vec<(f32, f32, f32)>, 
-        uvs: Vec<(f32, f32, f32, f32)>, 
+    fn process(positions: Vec<(f32, f32, f32, f32)>,
+        normals: Vec<(f32, f32, f32)>,
+        uvs: Vec<(f32, f32, f32)>,
         polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)> {
         let mut vb = Vec::with_capacity(polygons.len() * 3);
         let mut ib = Vec::with_capacity(polygons.len() * 3);
         {
             let mut cache = HashMap::new();
-            let mut map = |pi: usize, ni: usize| {
+            let mut map = |pi: usize, ni: usize, ui: usize| {
                 // Look up cache
                 let index = match cache.entry((pi, ni)) {
                     // Cache miss -> make new, store it on cache
                     Entry::Vacant(entry) => {
                         let p = positions[pi];
                         let n = normals[ni];
-                        let vertex = Vertex { position: [p.0, p.1, p.2], normal: [n.0, n.1, n.2] };
+                        let vertex: Vertex;
+                        if uvs.len() > 0 {
+                            let uv = uvs[ui];
+                            vertex = Vertex {
+                                position: [p.0, p.1, p.2],
+                                normal: [n.0, n.1, n.2],
+                                uv: [uv.0, uv.1, uv.2]
+                            };
+                        } else {
+                            vertex = Vertex {
+                                position: [p.0, p.1, p.2],
+                                normal: [n.0, n.1, n.2],
+                                uv: [0.0; 3]
+                            };
+                        }
 
                         let index= vb.len() as u16;
                         vb.push(vertex);
@@ -132,10 +146,10 @@ impl FromRawVertex for Vertex {
                 match polygon {
                     Polygon::P(_) | Polygon::PT(_) => error!(InsufficientData, "Tried to extract normal data which are not contained in the model"),
                     Polygon::PN(ref vec) if vec.len() == 3 => {
-                        for &(pi, ni) in vec { map(pi, ni) }
+                        for &(pi, ni) in vec { map(pi, ni, 0) }
                     }
                     Polygon::PTN(ref vec) if vec.len() == 3 => {
-                        for &(pi, _, ni) in vec { map(pi, ni) }
+                        for &(pi, ui, ni) in vec { map(pi, ni, ui) }
                     }
                     _ => error!(UntriangulatedModel, "Model should be triangulated first to be loaded properly")
                 }
@@ -157,7 +171,10 @@ pub struct Position {
 implement_vertex!(Position, position);
 
 impl FromRawVertex for Position {
-    fn process(vertices: Vec<(f32, f32, f32, f32)>, _: Vec<(f32, f32, f32)>, polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)> {
+    fn process(vertices: Vec<(f32, f32, f32, f32)>,
+        _: Vec<(f32, f32, f32)>,
+        _: Vec<(f32, f32, f32)>,
+        polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)> {
         let vb = vertices.into_iter().map(|v| Position { position: [v.0, v.1, v.2] }).collect();
         let mut ib = Vec::with_capacity(polygons.len() * 3);
         {
