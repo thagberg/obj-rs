@@ -64,7 +64,7 @@ pub struct Obj<V = Vertex> {
 impl<V: FromRawVertex> Obj<V> {
     /// Create `Obj` from `RawObj` object.
     pub fn new(raw: raw::RawObj) -> ObjResult<Self> {
-        let (vertices, indices) = try!(FromRawVertex::process(raw.positions, raw.normals, raw.polygons));
+        let (vertices, indices) = try!(FromRawVertex::process(raw.positions, raw.normals, raw.tex_coords, raw.polygons));
 
         Ok(Obj {
             name: raw.name,
@@ -77,7 +77,10 @@ impl<V: FromRawVertex> Obj<V> {
 /// Conversion from `RawObj`'s raw data.
 pub trait FromRawVertex : Sized {
     /// Build vertex and index buffer from raw object data.
-    fn process(vertices: Vec<(f32, f32, f32, f32)>, normals: Vec<(f32, f32, f32)>, polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)>;
+    fn process(vertices: Vec<(f32, f32, f32, f32)>, 
+        normals: Vec<(f32, f32, f32)>, 
+        uvs: Vec<(f32, f32, f32, f32)>, 
+        polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)>;
 }
 
 /// Vertex data type of `Obj` which contains position and normal data of a vertex.
@@ -87,13 +90,18 @@ pub struct Vertex {
     pub position: [f32; 3],
     /// Normal vertor of a vertex.
     pub normal: [f32; 3],
+
+    pub uv: [f32; 3],
 }
 
 #[cfg(feature = "glium-support")]
 implement_vertex!(Vertex, position, normal);
 
 impl FromRawVertex for Vertex {
-    fn process(positions: Vec<(f32, f32, f32, f32)>, normals: Vec<(f32, f32, f32)>, polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)> {
+    fn process(positions: Vec<(f32, f32, f32, f32)>, 
+        normals: Vec<(f32, f32, f32)>, 
+        uvs: Vec<(f32, f32, f32, f32)>, 
+        polygons: Vec<Polygon>) -> ObjResult<(Vec<Self>, Vec<u16>)> {
         let mut vb = Vec::with_capacity(polygons.len() * 3);
         let mut ib = Vec::with_capacity(polygons.len() * 3);
         {
